@@ -24,10 +24,16 @@ def on_batch(state, batch):
     if len(closes) > LOOKBACK:
         del closes[0]
 
+    if state.warming_up:
+        return []
+
+    mean = sum(closes) // len(closes)
     holding = state.positions.get(SYMBOL)
     if holding is None:
-        if state.warming_up:
-            return []
+        # Only the first tradable bar buys unconditionally; re-entry needs a dip.
+        if state.seq != state.warmup_bars:
+            if len(closes) < LOOKBACK or close * 10_000 > mean * (10_000 - BUY_STRETCH_BPS):
+                return []
         notional = min(state.cash * 10_000 // (10_000 + FEE_BPS), state.weight_room(SYMBOL))
         minimum = int(state.hello["fees"]["min_notional_quote_units"])
         if notional < minimum:
@@ -42,26 +48,13 @@ def on_batch(state, batch):
     if len(closes) < LOOKBACK:
         return []
 
-    mean = sum(closes) // LOOKBACK
-    stretch_bps = (close - mean) * 10_000 // mean
-    if stretch_bps >= SELL_STRETCH_BPS:
+    if close * 10_000 >= mean * (10_000 + SELL_STRETCH_BPS):
         return [{
             "side": "sell",
             "symbol": SYMBOL,
             "qty": holding.qty,
             "max_slippage_bps": MAX_SLIPPAGE_BPS,
         }]
-
-    if stretch_bps <= -BUY_STRETCH_BPS:
-        notional = min(state.cash * 10_000 // (10_000 + FEE_BPS), state.weight_room(SYMBOL))
-        minimum = int(state.hello["fees"]["min_notional_quote_units"])
-        if notional >= minimum:
-            return [{
-                "side": "buy",
-                "symbol": SYMBOL,
-                "notional_quote_units": notional,
-                "max_slippage_bps": MAX_SLIPPAGE_BPS,
-            }]
 
     return []
 
