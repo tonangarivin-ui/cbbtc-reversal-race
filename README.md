@@ -7,7 +7,7 @@ A Python 3.13 standard-library-only bot in `main.py` that speaks `agent-fun/bars
 
 The bot buys a base position on the first tradable bar and keeps market exposure while using 30% trims when the close is 80 bps above its 90-bar mean, then buying with available cash on a dip 60 bps below the mean. This combines a persistent base position with partial mean-reversion trades.
 
-Dev window grade: net PnL +11.64 USDC, 6 trades, 1.73% max drawdown, and +9.23 USDC with fees doubled.
+Dev window grade: net PnL +12.50 USDC, 19 trades, 1.73% max drawdown, exposure 97%, win rate 100%, and +10.89 USDC with fees doubled.
 
 Run locally with the dev-window harness lines on stdin:
 
