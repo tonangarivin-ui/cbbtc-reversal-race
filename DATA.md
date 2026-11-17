@@ -1,39 +1,69 @@
-# Measurements of the shipped 24-hour dev window (1,440 one-minute cbBTC bars)
+# Development-window evidence
 
-Taken from `dataset/bars/CBBTC.ndjson.gz` in the kit, re-derived by hand.
+These measurements describe the shipped 24-hour cbBTC development sample.
+It contains 1,440 bars at one-minute intervals.
 
-## Price level and depth
+## Prices and liquidity
 
-- close: 64,461.03527 USDC at the first bar, 64,775.95230 at the last (+48.8 bps over 24 hours)
-- pool depth at bar opens: median 880,211 USDC raw units x 10^6, min ~709k, max ~1,064k
-- an order worth 1,000 USDC meets a price impact of a/D ~ 1,000/880,211 = 11 bps... measured
-  exactly by the grader: a 1,000 USDC buy-and-hold round trip paid 800,588 micro-USDC of fees on
-  1,000,000,000, i.e. about 8 bps each way including the 4 bps fee and 2 bps slippage.
+The first bar closed at 64,461.03527 USDC.
+The last bar closed at 64,775.95230 USDC.
+The change across the day was +48.8 bps.
 
-## Return statistics
+Pool depth measured at bar opens had a median of roughly 880,000 USDC.
+The observed range was approximately 709,000 to 1,064,000 USDC.
 
-- 1-minute returns: mean +0.036 bps, sd 6.44 bps, min -34, max +45
-- autocorrelation of 1-minute returns: lag 1 **+0.153**, lag 2 +0.049, lag 3 -0.023,
-  lag 10 +0.039, lag 30 -0.004, lag 60 -0.020
-- forward return by trailing-return quintile (look 120 bars, forward 60 bars):
-  the lowest trailing quintile (-89 bps) returned **+17.7 bps** forward and the highest (+88 bps)
-  returned **-32.3 bps** forward. The reversal is strongest at 60-120 bar horizons.
-- sign persistence of 30/60/120-bar returns into the next same-length window: 0.46/0.39/0.39,
-  i.e. **below** 0.5, so momentum does not persist.
+## Minute returns
 
-## What was tested and what happened (all with the full cost model)
+The mean one-minute return was +0.036 bps.
+Its standard deviation was 6.44 bps.
+The smallest return was -34 bps and the largest was +45 bps.
 
-- Trend-following (buy above an N-bar mean, sell below): **loses** at every lookback from 15 to 480
-  bars, -$22 to -$249, because each round trip costs more than the trend it catches.
-- Pure mean reversion (all-in when stretched below, exit at the mean or at a take-profit), 180-bar
-  mean, -40 bps entry, +80 bps take-profit: dev +$2.55 with 12 trades, but **-$2.32 when fees are
-  doubled** - too thin a margin.
-- Base position plus reversion overlay (buy the base on the first bar, sell when stretched above the
-  mean, buy back when stretched below), 180-bar mean, +60 bps sell, +40 bps buy-back:
-  dev **+$18.28**, 8 trades, max drawdown 1.3%, and **+$15.04 with fees doubled**. This is the
-  design that survived: its profit does not depend on the cost model being the low one.
+Return autocorrelation varied with the lag:
 
-## Noise to expect
+| Lag in minutes | Autocorrelation |
+| --- | --- |
+| 1 | +0.153 |
+| 2 | +0.049 |
+| 3 | -0.023 |
+| 10 | +0.039 |
+| 30 | -0.004 |
+| 60 | -0.020 |
 
-The dev window is one day. The whole point of the overlay design is that it keeps a base exposure
-and only trades the extreme stretch, so it does not need a lucky single trade to be profitable.
+## Reversal across longer windows
+
+Sorting observations by their trailing 120-bar return reveals a strong multi-hour reversal.
+The bottom fifth gained an average of +17.7 bps during the next 60 bars.
+The top fifth returned -32.3 bps over the same forward horizon.
+
+A return's sign rarely persisted into the next window of equal length:
+
+| Window length in bars | Fraction retaining the same sign |
+| --- | --- |
+| 30 | 0.46 |
+| 60 | 0.39 |
+| 120 | 0.39 |
+
+These frequencies indicate that momentum does not persist.
+
+## Strategy results after costs
+
+Trend-following lost money at every tested lookback between 15 and 480 bars.
+Losses ranged from 22 to 249 USDC, or PnL of -22 to -249 USDC.
+Each round trip cost more than the trend captured.
+
+Pure mean reversion with a take-profit produced +2.55 USDC in a 12-trade development run.
+Doubling fees changed that result to -2.32 USDC.
+That leaves too little margin over trading costs.
+
+The base-position strategy with a reversal overlay used a 180-bar mean.
+It sold at +60 bps above the mean and bought back 40 bps below it
+(the +40 bps buy-back parameter).
+Its development results were:
+
+- Net profit: +18.28 USDC.
+- Trade count: 8.
+- Maximum drawdown: 1.3%.
+- Net profit with doubled fees: +15.04 USDC.
+
+The continued profit under doubled fees shows that this strategy's result does not depend
+on the lower-cost model.
