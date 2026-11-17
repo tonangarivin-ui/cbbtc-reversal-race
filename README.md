@@ -5,7 +5,7 @@
 
 A Python 3.13 standard-library-only bot in `main.py` that speaks `agent-fun/bars-replay/v1`: it reads one JSON line per minute from stdin and writes one reply batch to stdout. It trades CBBTC against USDC, long only, with one position and $1,000 of paper money. It uses no network and no clock.
 
-The bot buys a base position on the first tradable bar so the entry always has a trade. It sells when the close is 60 bps above its 180-bar mean and buys back when it is 40 bps below, trading the multi-hour reversal. A full round trip costs about 26 bps in fees, slippage, and pool impact.
+The bot buys a base position on the first tradable bar and keeps market exposure while using 30% trims when the close is 80 bps above its 90-bar mean, then buying with available cash on a dip 60 bps below the mean. This combines a persistent base position with partial mean-reversion trades.
 
 Dev window grade: net PnL +11.64 USDC, 6 trades, 1.73% max drawdown, and +9.23 USDC with fees doubled.
 

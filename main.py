@@ -6,13 +6,30 @@ import makefun_bars
 
 
 SYMBOL = "CBBTC"  # The traded cbBTC/USDC market.
-LOOKBACK = 180  # Bars in the mean that defines an extreme stretch.
-SELL_STRETCH_BPS = 60  # Exit the base position this far above the mean.
-BUY_STRETCH_BPS = 40  # Re-enter this far below the mean.
+LOOKBACK = 90  # Bars in the mean that defines an extreme stretch.
+SELL_STRETCH_BPS = 80  # Trim the position this far above the mean.
+BUY_STRETCH_BPS = 60  # Buy back this far below the mean.
+TRIM_PERCENT = 30  # Sell only this percentage of the current holding.
 MAX_SLIPPAGE_BPS = 100  # Reject fills that move too far from the last close.
 FEE_BPS = 4  # Reserve one buy-side fee so the account never overspends cash.
 
 closes = []
+
+
+def _minimum(state):
+    return int(state.hello["fees"]["min_notional_quote_units"])
+
+
+def _buy_all(state):
+    notional = min(state.cash * 10_000 // (10_000 + FEE_BPS), state.weight_room(SYMBOL))
+    if notional < _minimum(state):
+        return []
+    return [{
+        "side": "buy",
+        "symbol": SYMBOL,
+        "notional_quote_units": notional,
+        "max_slippage_bps": MAX_SLIPPAGE_BPS,
+    }]
 
 
 def on_batch(state, batch):
@@ -34,25 +51,22 @@ def on_batch(state, batch):
         if state.seq != state.warmup_bars:
             if len(closes) < LOOKBACK or close * 10_000 > mean * (10_000 - BUY_STRETCH_BPS):
                 return []
-        notional = min(state.cash * 10_000 // (10_000 + FEE_BPS), state.weight_room(SYMBOL))
-        minimum = int(state.hello["fees"]["min_notional_quote_units"])
-        if notional < minimum:
-            return []
-        return [{
-            "side": "buy",
-            "symbol": SYMBOL,
-            "notional_quote_units": notional,
-            "max_slippage_bps": MAX_SLIPPAGE_BPS,
-        }]
+        return _buy_all(state)
 
     if len(closes) < LOOKBACK:
         return []
 
+    if TRIM_PERCENT < 100 and close * 10_000 <= mean * (10_000 - BUY_STRETCH_BPS):
+        return _buy_all(state)
+
     if close * 10_000 >= mean * (10_000 + SELL_STRETCH_BPS):
+        qty = holding.qty * TRIM_PERCENT // 100
+        if qty < 1:
+            return []
         return [{
             "side": "sell",
             "symbol": SYMBOL,
-            "qty": holding.qty,
+            "qty": qty,
             "max_slippage_bps": MAX_SLIPPAGE_BPS,
         }]
 
